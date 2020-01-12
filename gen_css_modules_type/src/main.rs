@@ -3,7 +3,11 @@ use notify::event::ModifyKind;
 use notify::{Event, EventKind, Result as NotifyResult, Watcher};
 
 fn main() -> NotifyResult<()> {
+    println!("Edit a CSS file in this directory or subdirectories...");
+    println!("TypeScript type defs shall be generated");
+    println!();
     println!("Enter quit() to exit!");
+    println!();
 
     let handler = Box::new(|res| match res {
         Ok(Event {
