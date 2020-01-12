@@ -3,7 +3,7 @@ use regex::Regex;
 use std::fs::File;
 use std::io::prelude::Read;
 use std::io::{self, BufRead, Error, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use unicode_segmentation::UnicodeSegmentation;
 
 pub const PATH_TO_WATCH: &str = ".";
@@ -29,7 +29,7 @@ pub fn handle_on_modify(paths: Vec<PathBuf>) -> () {
           let type_defs_filename = create_type_defs_filename(path);
           let contents = extract_file_contents(path);
           let type_defs = handle_css_change(&contents);
-          save_type_defs(type_defs, type_defs_filename);
+          save_type_defs(type_defs, &type_defs_filename);
         }
       }
       _ => (),
@@ -99,24 +99,23 @@ fn extract_file_contents(path: &PathBuf) -> String {
   content
 }
 
-fn create_type_defs_filename(path: &PathBuf) -> String {
-  let unknown_name = "unknown";
-  match path.file_name() {
-    Some(name) => match name.to_str() {
-      Some(name) => format!("{}.d.ts", name),
-      None => format!("{}.d.ts", unknown_name),
-    },
-    None => format!("{}.d.ts", unknown_name),
-  }
+fn create_type_defs_filename(path: &PathBuf) -> PathBuf {
+  let parent = match path.parent() {
+    Some(parent) => parent,
+    None => Path::new("unknown"),
+  };
+  let name = format!("{}.d.ts", extract_filename(path));
+
+  Path::new(parent).join(name)
 }
 
-fn save_type_defs(content: String, filename: String) -> () {
+fn save_type_defs(content: String, path: &PathBuf) -> () {
   let mut retries = 0;
   while retries < 1_000 {
-    let file = File::create(&filename);
+    let file = File::create(path);
     if let Ok(mut opened_file) = file {
       if let Ok(_) = opened_file.write_all(content.as_bytes()) {
-        println!("Saved type def to {}", filename);
+        println!("Saved type def to {}", extract_filename(path));
         return ();
       } else {
         retries = retries + 1;
@@ -125,5 +124,18 @@ fn save_type_defs(content: String, filename: String) -> () {
       retries = retries + 1;
     }
   }
-  println!("Failed to save type def to {}", filename);
+  println!("Failed to save type def to {}", extract_filename(path));
+}
+
+fn extract_filename(path: &PathBuf) -> String {
+  let unknown_name = "unknown";
+  let name = match path.file_name() {
+    Some(name) => match name.to_str() {
+      Some(name) => name,
+      None => unknown_name,
+    },
+    None => unknown_name,
+  };
+
+  String::from(name)
 }
