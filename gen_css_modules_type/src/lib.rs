@@ -40,11 +40,11 @@ pub fn handle_on_modify(paths: Vec<PathBuf>) -> () {
 }
 
 fn handle_css_change(content: &str) -> String {
-  let rules = parse_rules(content);
-  let rules = remove_dot(rules);
-  let type_defs = type_defs_of_rules(rules);
-  let type_defs = create_type_defs_file(type_defs);
-  type_defs
+  parse_rules(content)
+    .into_iter()
+    .map(remove_dot)
+    .map(type_defs_of_rules)
+    .fold(String::from(""), create_type_def_file_content)
 }
 
 fn parse_rules(css: &str) -> Vec<&str> {
@@ -55,30 +55,18 @@ fn parse_rules(css: &str) -> Vec<&str> {
     .collect()
 }
 
-fn remove_dot(rules: Vec<&str>) -> Vec<&str> {
-  rules
-    .into_iter()
-    .map(|rule| {
-      let mut graphemes_iter = rule.graphemes(true);
-      graphemes_iter.next();
-      graphemes_iter.as_str()
-    })
-    .collect()
+fn remove_dot(rule: &str) -> &str {
+  let mut graphemes_iter = rule.graphemes(true);
+  graphemes_iter.next();
+  graphemes_iter.as_str()
 }
 
-fn type_defs_of_rules(rule_names: Vec<&str>) -> Vec<String> {
-  rule_names
-    .into_iter()
-    .map(|rule_name| format!("export const {}: string;", rule_name))
-    .collect()
+fn type_defs_of_rules(rule_name: &str) -> String {
+  format!("export const {}: string;", rule_name)
 }
 
-fn create_type_defs_file(type_defs: Vec<String>) -> String {
-  type_defs
-    .into_iter()
-    .fold(String::from(""), |content, type_def| {
-      format!("{}{}\n", content, type_def)
-    })
+fn create_type_def_file_content(content: String, type_def: String) -> String {
+  format!("{}{}\n", content, type_def)
 }
 
 fn extract_file_contents(path: &PathBuf) -> String {
