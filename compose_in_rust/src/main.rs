@@ -7,9 +7,9 @@ fn main() {
     let num = |word: String| -> usize { word.len() };
     let add_one = |num: usize| -> usize { num + 1 };
 
-    let composed = pipe().from(append_exclamation).to(num).to(add_one);
+    let composed = pipe().to(append_exclamation).to(num).to(add_one);
 
-    println!("{}", composed.apply("Hi")); // prints 4
+    println!("{}", composed.call("Hi")); // prints 4
 }
 
 fn pipe() -> PipeMaker {
@@ -23,9 +23,11 @@ impl PipeMaker {
         PipeMaker {}
     }
 
-    fn from<'a, F, T, U>(self, wrapped_function: F) -> Pipe<'a, T, U>
+    fn to<'a, F, T, U>(self, wrapped_function: F) -> Pipe<'a, T, U>
     where
         F: 'a + Fn(T) -> U,
+        T: 'a,
+        U: 'a,
     {
         Pipe {
             wrapped_function: Box::new(wrapped_function),
@@ -50,7 +52,7 @@ impl<'a, T, U> Pipe<'a, T, U> {
         }
     }
 
-    fn apply(self, arg: T) -> U {
+    fn call(self, arg: T) -> U {
         (self.wrapped_function)(arg)
     }
 }
