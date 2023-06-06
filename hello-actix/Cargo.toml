@@ -8,3 +8,5 @@ edition = "2021"
 [dependencies]
 actix-web = "4"
 serde = { version = "1.0.162", features = ["derive"] }
+time = { version = "0.3", features = ["macros", "serde"] }
+rand = { version = "0.8.5" }
