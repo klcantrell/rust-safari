@@ -2,12 +2,14 @@ use actix_web::{get, App, HttpResponse, HttpServer, Responder};
 use rand::{thread_rng, Rng};
 use serde::Serialize;
 use std::net::Ipv4Addr;
-use time::{Duration, OffsetDateTime};
+use time::{
+    format_description::{self, FormatItem},
+    Duration, OffsetDateTime,
+};
 
 #[derive(Serialize)]
 struct WeatherForecast {
-    #[serde(with = "time::serde::iso8601")]
-    date: OffsetDateTime,
+    date: String,
 
     #[serde(rename = "temperatureC")]
     temperature_c: i32,
@@ -34,6 +36,8 @@ const SUMMARIES: [&str; 10] = [
 #[get("/weatherforecast")]
 async fn hello_actix() -> impl Responder {
     let mut rng = thread_rng();
+    let date_format: Vec<FormatItem> = format_description::parse("[year]-[month]-[day]").unwrap();
+
     HttpResponse::Ok().json(
         (1..=5)
             .map(|index| {
@@ -41,7 +45,9 @@ async fn hello_actix() -> impl Responder {
                 let random_temp_c = rng.gen_range((-20.)..=55.);
 
                 WeatherForecast {
-                    date: OffsetDateTime::now_utc() + Duration::days(index),
+                    date: (OffsetDateTime::now_utc() + Duration::days(index))
+                        .format(&date_format)
+                        .unwrap(),
                     temperature_c: random_temp_c as i32,
                     temperature_f: 32 + (random_temp_c / 0.5556) as i32,
                     summary: SUMMARIES[random_summary_index].to_string(),
