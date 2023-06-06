@@ -35,7 +35,7 @@ const SUMMARIES: [&str; 10] = [
 async fn hello_actix() -> impl Responder {
     let mut rng = thread_rng();
     HttpResponse::Ok().json(
-        (1..5)
+        (1..=5)
             .map(|index| {
                 let random_summary_index = rng.gen_range(0..SUMMARIES.len());
                 let random_temp_c = rng.gen_range((-20.)..=55.);
@@ -43,7 +43,7 @@ async fn hello_actix() -> impl Responder {
                 WeatherForecast {
                     date: OffsetDateTime::now_utc() + Duration::days(index),
                     temperature_c: random_temp_c as i32,
-                    temperature_f: (random_temp_c / 0.5556) as i32,
+                    temperature_f: 32 + (random_temp_c / 0.5556) as i32,
                     summary: SUMMARIES[random_summary_index].to_string(),
                 }
             })
