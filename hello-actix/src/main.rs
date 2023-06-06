@@ -9,8 +9,11 @@ struct WeatherForecast {
     #[serde(with = "time::serde::iso8601")]
     date: OffsetDateTime,
 
-    #[serde(rename = "name")]
+    #[serde(rename = "temperatureC")]
     temperature_c: i32,
+
+    #[serde(rename = "temperatureF")]
+    temperature_f: i32,
 
     summary: String,
 }
@@ -30,12 +33,19 @@ const SUMMARIES: [&str; 10] = [
 
 #[get("/weatherforecast")]
 async fn hello_actix() -> impl Responder {
+    let mut rng = thread_rng();
     HttpResponse::Ok().json(
         (1..5)
-            .map(|index| WeatherForecast {
-                date: OffsetDateTime::now_utc() + Duration::days(index),
-                temperature_c: 32,
-                summary: SUMMARIES[make_random(0, SUMMARIES.len() - 1)].to_string(),
+            .map(|index| {
+                let random_summary_index = rng.gen_range(0..SUMMARIES.len());
+                let random_temp_c = rng.gen_range((-20.)..=55.);
+
+                WeatherForecast {
+                    date: OffsetDateTime::now_utc() + Duration::days(index),
+                    temperature_c: random_temp_c as i32,
+                    temperature_f: (random_temp_c / 0.5556) as i32,
+                    summary: SUMMARIES[random_summary_index].to_string(),
+                }
             })
             .collect::<Vec<WeatherForecast>>(),
     )
@@ -47,9 +57,4 @@ async fn main() -> std::io::Result<()> {
         .bind((Ipv4Addr::LOCALHOST, 3000))?
         .run()
         .await
-}
-
-fn make_random(start: usize, end_inclusive: usize) -> usize {
-    let mut rng = thread_rng();
-    rng.gen_range(start..=end_inclusive)
 }

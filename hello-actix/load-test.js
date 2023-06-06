@@ -2,11 +2,11 @@ import http from 'k6/http';
 import { sleep } from 'k6';
 
 export const options = {
-  vus: 200,
+  vus: 10,
   duration: '1m',
 };
 
 export default function() {
-  http.get('http://hello-actix.eastus.cloudapp.azure.com/api/hello-actix');
+  http.get('http://hello-actix.eastus.cloudapp.azure.com/weatherforecast');
 }
 
