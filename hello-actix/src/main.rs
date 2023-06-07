@@ -1,4 +1,5 @@
 use actix_web::{get, App, HttpResponse, HttpServer, Responder};
+use once_cell::sync::Lazy;
 use rand::{thread_rng, Rng};
 use serde::Serialize;
 use std::net::Ipv4Addr;
@@ -33,10 +34,12 @@ const SUMMARIES: [&str; 10] = [
     "Scorching",
 ];
 
+static DATE_FORMAT: Lazy<Vec<FormatItem>> =
+    Lazy::new(|| format_description::parse("[year]-[month]-[day]").unwrap());
+
 #[get("/weatherforecast")]
 async fn hello_actix() -> impl Responder {
     let mut rng = thread_rng();
-    let date_format: Vec<FormatItem> = format_description::parse("[year]-[month]-[day]").unwrap();
 
     HttpResponse::Ok().json(
         (1..=5)
@@ -46,7 +49,7 @@ async fn hello_actix() -> impl Responder {
 
                 WeatherForecast {
                     date: (OffsetDateTime::now_utc() + Duration::days(index))
-                        .format(&date_format)
+                        .format(&DATE_FORMAT)
                         .unwrap(),
                     temperature_c: random_temp_c as i32,
                     temperature_f: 32 + (random_temp_c / 0.5556) as i32,

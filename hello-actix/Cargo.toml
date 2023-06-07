@@ -10,3 +10,4 @@ actix-web = "4"
 serde = { version = "1.0.162", features = ["derive"] }
 time = { version = "0.3", features = ["macros", "serde", "formatting"] }
 rand = { version = "0.8.5" }
+once_cell = "1.18.0"
