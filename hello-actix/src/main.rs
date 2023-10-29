@@ -63,7 +63,7 @@ async fn hello_actix() -> impl Responder {
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     HttpServer::new(|| App::new().service(hello_actix))
-        .bind((Ipv4Addr::LOCALHOST, 3000))?
+        .bind(("0.0.0.0", 3000))?
         .run()
         .await
 }
