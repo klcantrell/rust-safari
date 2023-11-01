@@ -1,12 +1,8 @@
 use bevy::prelude::*;
 use itertools::Itertools;
+use rand::prelude::*;
 
 mod colors;
-
-#[derive(Component)]
-struct Board {
-    size: u8,
-}
 
 fn main() {
     App::new()
@@ -18,7 +14,10 @@ fn main() {
             }),
             ..default()
         }))
-        .add_startup_systems((setup, spawn_board))
+        .add_startup_systems(
+            (setup, spawn_board, apply_system_buffers, spawn_tiles).chain(), // chain prevents the default behavior of running the systems in parallel
+                                                                             // in our case, we want to run them sequentially so that spawn_tiles has access to the board
+        )
         .run();
 }
 
@@ -29,23 +28,51 @@ fn setup(mut commands: Commands) {
 const TILE_SIZE: f32 = 40.0;
 const TILE_SPACER: f32 = 10.0;
 
+#[derive(Component)]
+struct Points {
+    value: u32,
+}
+
+#[derive(Component)]
+struct Position {
+    x: u8,
+    y: u8,
+}
+
+#[derive(Component)]
+struct Board {
+    size: u8,
+    physical_size: f32,
+}
+
+impl Board {
+    fn new(size: u8) -> Self {
+        let physical_size = f32::from(size) * TILE_SIZE + f32::from(size + 1) * TILE_SPACER;
+        Self {
+            size,
+            physical_size,
+        }
+    }
+
+    fn cell_position_to_physical(&self, position: u8) -> f32 {
+        let offset = -self.physical_size / 2.0 + TILE_SIZE / 2.0;
+        offset + f32::from(position) * TILE_SIZE + f32::from(position + 1) * TILE_SPACER
+    }
+}
+
 fn spawn_board(mut commands: Commands) {
-    let board = Board { size: 4 };
-    let physical_board_size =
-        f32::from(board.size) * TILE_SIZE + f32::from(board.size + 1) * TILE_SPACER;
+    let board = Board::new(4);
 
     commands
         .spawn(SpriteBundle {
             sprite: Sprite {
                 color: colors::BOARD,
-                custom_size: Some(Vec2::new(physical_board_size, physical_board_size)),
+                custom_size: Some(Vec2::new(board.physical_size, board.physical_size)),
                 ..default()
             },
             ..default()
         })
         .with_children(|builder| {
-            let offset = -physical_board_size / 2.0 + TILE_SIZE / 2.0;
-
             for tile in (0..board.size).cartesian_product(0..board.size) {
                 builder.spawn(SpriteBundle {
                     sprite: Sprite {
@@ -54,12 +81,8 @@ fn spawn_board(mut commands: Commands) {
                         ..default()
                     },
                     transform: Transform::from_xyz(
-                        offset
-                            + f32::from(tile.0) * TILE_SIZE
-                            + f32::from(tile.0 + 1) * TILE_SPACER,
-                        offset
-                            + f32::from(tile.1) * TILE_SIZE
-                            + f32::from(tile.1 + 1) * TILE_SPACER,
+                        board.cell_position_to_physical(tile.0),
+                        board.cell_position_to_physical(tile.1),
                         1.0,
                     ),
                     ..default()
@@ -67,4 +90,33 @@ fn spawn_board(mut commands: Commands) {
             }
         })
         .insert(board);
+}
+
+fn spawn_tiles(mut commands: Commands, query_board: Query<&Board>) {
+    let board = query_board.single();
+
+    let mut range = rand::thread_rng();
+    let starting_tiles: Vec<(u8, u8)> = (0..board.size)
+        .cartesian_product(0..board.size)
+        .choose_multiple(&mut range, 2);
+
+    for (x, y) in starting_tiles.iter() {
+        let position = Position { x: *x, y: *y };
+        commands
+            .spawn(SpriteBundle {
+                sprite: Sprite {
+                    color: colors::TILE,
+                    custom_size: Some(Vec2::new(TILE_SIZE, TILE_SIZE)),
+                    ..default()
+                },
+                transform: Transform::from_xyz(
+                    board.cell_position_to_physical(*x),
+                    board.cell_position_to_physical(*y),
+                    1.0,
+                ),
+                ..default()
+            })
+            .insert(Points { value: 2 })
+            .insert(position);
+    }
 }
