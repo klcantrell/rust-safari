@@ -14,9 +14,12 @@ fn main() {
             }),
             ..default()
         }))
+        // needs to be inserted after default plugins, which contain the asset resource locator
+        .init_resource::<FontSpec>()
         .add_startup_systems(
-            (setup, spawn_board, apply_system_buffers, spawn_tiles).chain(), // chain prevents the default behavior of running the systems in parallel
-                                                                             // in our case, we want to run them sequentially so that spawn_tiles has access to the board
+            // chain prevents the default behavior of running the systems in parallel
+            // in our case, we want to run them sequentially so that spawn_tiles has access to the board
+            (setup, spawn_board, apply_system_buffers, spawn_tiles).chain(),
         )
         .run();
 }
@@ -37,6 +40,23 @@ struct Points {
 struct Position {
     x: u8,
     y: u8,
+}
+
+#[derive(Component)]
+struct TileText;
+
+#[derive(Resource)]
+struct FontSpec {
+    family: Handle<Font>,
+}
+
+impl FromWorld for FontSpec {
+    fn from_world(world: &mut World) -> Self {
+        let asset_server = world.get_resource::<AssetServer>().unwrap();
+        Self {
+            family: asset_server.load("fonts/FiraSans-Bold.ttf"),
+        }
+    }
 }
 
 #[derive(Component)]
@@ -92,7 +112,7 @@ fn spawn_board(mut commands: Commands) {
         .insert(board);
 }
 
-fn spawn_tiles(mut commands: Commands, query_board: Query<&Board>) {
+fn spawn_tiles(mut commands: Commands, query_board: Query<&Board>, font_spec: Res<FontSpec>) {
     let board = query_board.single();
 
     let mut range = rand::thread_rng();
@@ -115,6 +135,22 @@ fn spawn_tiles(mut commands: Commands, query_board: Query<&Board>) {
                     1.0,
                 ),
                 ..default()
+            })
+            .with_children(|builder| {
+                builder.spawn(Text2dBundle {
+                    text: Text::from_section(
+                        "2",
+                        TextStyle {
+                            font: font_spec.family.clone(),
+                            font_size: 40.0,
+                            color: Color::BLACK,
+                            ..default()
+                        },
+                    )
+                    .with_alignment(TextAlignment::Center),
+                    transform: Transform::from_xyz(0.0, 0.0, 1.0),
+                    ..default()
+                });
             })
             .insert(Points { value: 2 })
             .insert(position);
