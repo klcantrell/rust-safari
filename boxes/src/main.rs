@@ -21,6 +21,7 @@ fn main() {
             // in our case, we want to run them sequentially so that spawn_tiles has access to the board
             (setup, spawn_board, apply_system_buffers, spawn_tiles).chain(),
         )
+        .add_system(render_tile_points)
         .run();
 }
 
@@ -137,22 +138,39 @@ fn spawn_tiles(mut commands: Commands, query_board: Query<&Board>, font_spec: Re
                 ..default()
             })
             .with_children(|builder| {
-                builder.spawn(Text2dBundle {
-                    text: Text::from_section(
-                        "2",
-                        TextStyle {
-                            font: font_spec.family.clone(),
-                            font_size: 40.0,
-                            color: Color::BLACK,
-                            ..default()
-                        },
-                    )
-                    .with_alignment(TextAlignment::Center),
-                    transform: Transform::from_xyz(0.0, 0.0, 1.0),
-                    ..default()
-                });
+                builder
+                    .spawn(Text2dBundle {
+                        text: Text::from_section(
+                            "2",
+                            TextStyle {
+                                font: font_spec.family.clone(),
+                                font_size: 40.0,
+                                color: Color::BLACK,
+                            },
+                        )
+                        .with_alignment(TextAlignment::Center),
+                        transform: Transform::from_xyz(0.0, 0.0, 1.0),
+                        ..default()
+                    })
+                    .insert(TileText);
             })
             .insert(Points { value: 2 })
             .insert(position);
+    }
+}
+
+fn render_tile_points(
+    mut texts: Query<&mut Text, With<TileText>>,
+    tiles: Query<(&Points, &Children)>,
+) {
+    for (points, children) in tiles.iter() {
+        if let Some(entity) = children.first() {
+            let mut text = texts.get_mut(*entity).expect("expected Text to exist");
+            let text_section = text
+                .sections
+                .first_mut()
+                .expect("expected first section to exist");
+            text_section.value = points.value.to_string();
+        }
     }
 }
