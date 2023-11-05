@@ -21,7 +21,7 @@ fn main() {
             // in our case, we want to run them sequentially so that spawn_tiles has access to the board
             (setup, spawn_board, apply_system_buffers, spawn_tiles).chain(),
         )
-        .add_system(render_tile_points)
+        .add_systems((render_tile_points, board_shift))
         .run();
 }
 
@@ -32,12 +32,12 @@ fn setup(mut commands: Commands) {
 const TILE_SIZE: f32 = 40.0;
 const TILE_SPACER: f32 = 10.0;
 
-#[derive(Component)]
+#[derive(Component, Debug)]
 struct Points {
     value: u32,
 }
 
-#[derive(Component)]
+#[derive(Component, Debug)]
 struct Position {
     x: u8,
     y: u8,
@@ -172,5 +172,54 @@ fn render_tile_points(
                 .expect("expected first section to exist");
             text_section.value = points.value.to_string();
         }
+    }
+}
+
+enum BoardShift {
+    Left,
+    Right,
+    Up,
+    Down,
+}
+
+impl TryFrom<&KeyCode> for BoardShift {
+    type Error = &'static str;
+
+    fn try_from(key_code: &KeyCode) -> Result<Self, Self::Error> {
+        match key_code {
+            KeyCode::Left => Ok(BoardShift::Left),
+            KeyCode::Right => Ok(BoardShift::Right),
+            KeyCode::Up => Ok(BoardShift::Up),
+            KeyCode::Down => Ok(BoardShift::Down),
+            _ => Err(""),
+        }
+    }
+}
+
+fn board_shift(input: Res<Input<KeyCode>>, mut tiles: Query<(Entity, &mut Position, &mut Points)>) {
+    let shift_direction = input
+        .get_just_pressed()
+        .find_map(|key_code| BoardShift::try_from(key_code).ok());
+
+    match shift_direction {
+        Some(BoardShift::Left) => {
+            let mut it = tiles
+                .iter_mut()
+                .sorted_by(|a, b| match Ord::cmp(&a.1.y, &b.1.y) {
+                    std::cmp::Ordering::Equal => Ord::cmp(&a.1.x, &b.1.x),
+                    ordering => ordering,
+                });
+            dbg!(it);
+        }
+        Some(BoardShift::Right) => {
+            dbg!("right");
+        }
+        Some(BoardShift::Up) => {
+            dbg!("up");
+        }
+        Some(BoardShift::Down) => {
+            dbg!("down");
+        }
+        None => (),
     }
 }
