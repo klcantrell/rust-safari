@@ -18,17 +18,31 @@ fn main() {
         }))
         // needs to be inserted after default plugins, which contain the asset resource locator
         .init_resource::<FontSpec>()
+        .init_resource::<Game>()
+        .add_event::<NewTileEvent>()
         .add_startup_systems(
             // chain prevents the default behavior of running the systems in parallel
             // in our case, we want to run them sequentially so that spawn_tiles has access to the board
             (setup, spawn_board, apply_system_buffers, spawn_tiles).chain(),
         )
-        .add_systems((render_tile_points, board_shift, render_tiles))
+        .add_systems((
+            render_tile_points,
+            board_shift,
+            render_tiles,
+            new_tile_handler,
+        ))
         .run();
 }
 
 fn setup(mut commands: Commands) {
     commands.spawn(Camera2dBundle::default());
+}
+
+struct NewTileEvent;
+
+#[derive(Default, Resource)]
+struct Game {
+    score: u32,
 }
 
 const TILE_SIZE: f32 = 40.0;
@@ -39,7 +53,7 @@ struct Points {
     value: u32,
 }
 
-#[derive(Component, Debug)]
+#[derive(Component, Debug, PartialEq, Clone, Copy)]
 struct Position {
     x: u8,
     y: u8,
@@ -125,39 +139,7 @@ fn spawn_tiles(mut commands: Commands, query_board: Query<&Board>, font_spec: Re
 
     for (x, y) in starting_tiles.iter() {
         let position = Position { x: *x, y: *y };
-        commands
-            .spawn(SpriteBundle {
-                sprite: Sprite {
-                    color: colors::TILE,
-                    custom_size: Some(Vec2::new(TILE_SIZE, TILE_SIZE)),
-                    ..default()
-                },
-                transform: Transform::from_xyz(
-                    board.cell_position_to_physical(*x),
-                    board.cell_position_to_physical(*y),
-                    1.0,
-                ),
-                ..default()
-            })
-            .with_children(|builder| {
-                builder
-                    .spawn(Text2dBundle {
-                        text: Text::from_section(
-                            "2",
-                            TextStyle {
-                                font: font_spec.family.clone(),
-                                font_size: 40.0,
-                                color: Color::BLACK,
-                            },
-                        )
-                        .with_alignment(TextAlignment::Center),
-                        transform: Transform::from_xyz(0.0, 0.0, 1.0),
-                        ..default()
-                    })
-                    .insert(TileText);
-            })
-            .insert(Points { value: 2 })
-            .insert(position);
+        spawn_tile(&mut commands, board, &font_spec, position)
     }
 }
 
@@ -250,6 +232,8 @@ fn board_shift(
     input: Res<Input<KeyCode>>,
     mut tiles: Query<(Entity, &mut Position, &mut Points)>,
     query_board: Query<&Board>,
+    mut tile_writer: EventWriter<NewTileEvent>,
+    mut game: ResMut<Game>,
 ) {
     let board = query_board.single();
     let shift_direction = input
@@ -278,6 +262,8 @@ fn board_shift(
                     let real_next_tile = it.next().expect("A peeked tile should always exist");
                     tile.2.value += real_next_tile.2.value;
 
+                    game.score += tile.2.value;
+
                     commands.entity(real_next_tile.0).despawn_recursive();
 
                     if let Some(future) = it.peek() {
@@ -294,6 +280,8 @@ fn board_shift(
                 }
             }
         }
+        dbg!(game.score);
+        tile_writer.send(NewTileEvent);
     }
 }
 
@@ -308,4 +296,77 @@ fn render_tiles(
             transform.translation.y = board.cell_position_to_physical(position.y);
         }
     }
+}
+
+fn new_tile_handler(
+    mut tile_reader: EventReader<NewTileEvent>,
+    mut commands: Commands,
+    query_board: Query<&Board>,
+    tiles: Query<&Position>,
+    font_spec: Res<FontSpec>,
+) {
+    let board = query_board.single();
+
+    for _event in tile_reader.iter() {
+        // insert new tile
+        let mut range = rand::thread_rng();
+        let possible_position: Option<Position> = (0..board.size)
+            .cartesian_product(0..board.size)
+            .filter_map(|tile_position| {
+                let new_position = Position {
+                    x: tile_position.0,
+                    y: tile_position.1,
+                };
+                match tiles.iter().find(|&&position| position == new_position) {
+                    Some(_) => None,
+                    None => Some(new_position),
+                }
+            })
+            .choose(&mut range);
+
+        if let Some(position) = possible_position {
+            spawn_tile(&mut commands, board, &font_spec, position);
+        }
+    }
+}
+
+fn spawn_tile(
+    commands: &mut Commands,
+    board: &Board,
+    font_spec: &Res<FontSpec>,
+    position: Position,
+) {
+    commands
+        .spawn(SpriteBundle {
+            sprite: Sprite {
+                color: colors::TILE,
+                custom_size: Some(Vec2::new(TILE_SIZE, TILE_SIZE)),
+                ..default()
+            },
+            transform: Transform::from_xyz(
+                board.cell_position_to_physical(position.x),
+                board.cell_position_to_physical(position.y),
+                2.0,
+            ),
+            ..default()
+        })
+        .with_children(|builder| {
+            builder
+                .spawn(Text2dBundle {
+                    text: Text::from_section(
+                        "2",
+                        TextStyle {
+                            font: font_spec.family.clone(),
+                            font_size: 40.0,
+                            color: Color::BLACK,
+                        },
+                    )
+                    .with_alignment(TextAlignment::Center),
+                    transform: Transform::from_xyz(0.0, 0.0, 1.0),
+                    ..default()
+                })
+                .insert(TileText);
+        })
+        .insert(Points { value: 2 })
+        .insert(position);
 }
