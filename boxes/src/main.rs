@@ -282,7 +282,6 @@ fn board_shift(
                 }
             }
         }
-        dbg!(game.score);
         tile_writer.send(NewTileEvent);
     }
 }
