@@ -5,6 +5,7 @@ use itertools::Itertools;
 use rand::prelude::*;
 
 mod colors;
+mod ui;
 
 fn main() {
     App::new()
@@ -16,6 +17,7 @@ fn main() {
             }),
             ..default()
         }))
+        .add_plugin(ui::GameUiPlugin)
         // needs to be inserted after default plugins, which contain the asset resource locator
         .init_resource::<FontSpec>()
         .init_resource::<Game>()
