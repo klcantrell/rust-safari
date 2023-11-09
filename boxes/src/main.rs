@@ -17,6 +17,7 @@ fn main() {
             }),
             ..default()
         }))
+        .add_state::<RunState>()
         .add_plugin(ui::GameUiPlugin)
         // needs to be inserted after default plugins, which contain the asset resource locator
         .init_resource::<FontSpec>()
@@ -27,18 +28,28 @@ fn main() {
             // in our case, we want to run them sequentially so that spawn_tiles has access to the board
             (setup, spawn_board, apply_system_buffers, spawn_tiles).chain(),
         )
-        .add_systems((
-            render_tile_points,
-            board_shift,
-            render_tiles,
-            new_tile_handler,
-            end_game,
-        ))
+        .add_systems(
+            (
+                render_tile_points,
+                board_shift,
+                render_tiles,
+                new_tile_handler,
+                end_game,
+            )
+                .in_set(OnUpdate(RunState::Playing)),
+        )
         .run();
 }
 
 fn setup(mut commands: Commands) {
     commands.spawn(Camera2dBundle::default());
+}
+
+#[derive(Default, Debug, Clone, Eq, PartialEq, Hash, States)]
+enum RunState {
+    #[default]
+    Playing,
+    GameOver,
 }
 
 struct NewTileEvent;
@@ -373,7 +384,11 @@ fn spawn_tile(
         .insert(position);
 }
 
-fn end_game(tiles: Query<(&Position, &Points)>, query_board: Query<&Board>) {
+fn end_game(
+    tiles: Query<(&Position, &Points)>,
+    query_board: Query<&Board>,
+    mut next_state: ResMut<NextState<RunState>>,
+) {
     let board = query_board.single();
 
     if tiles.iter().len() == 16 {
@@ -403,6 +418,7 @@ fn end_game(tiles: Query<(&Position, &Points)>, query_board: Query<&Board>) {
 
         if !has_move {
             println!("Game over!");
+            next_state.set(RunState::GameOver);
         }
     }
 }
