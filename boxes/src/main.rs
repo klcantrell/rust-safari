@@ -26,7 +26,7 @@ fn main() {
         .add_startup_systems(
             // chain prevents the default behavior of running the systems in parallel
             // in our case, we want to run them sequentially so that spawn_tiles has access to the board
-            (setup, spawn_board, apply_system_buffers, spawn_tiles).chain(),
+            (setup, spawn_board, apply_system_buffers).chain(),
         )
         .add_systems(
             (
@@ -38,6 +38,7 @@ fn main() {
             )
                 .in_set(OnUpdate(RunState::Playing)),
         )
+        .add_systems((game_reset, spawn_tiles).in_schedule(OnEnter(RunState::Playing)))
         .run();
 }
 
@@ -421,4 +422,16 @@ fn end_game(
             next_state.set(RunState::GameOver);
         }
     }
+}
+
+fn game_reset(
+    mut commands: Commands,
+    query_tiles: Query<Entity, With<Position>>,
+    mut game: ResMut<Game>,
+) {
+    for entity in query_tiles.iter() {
+        commands.entity(entity).despawn_recursive();
+    }
+
+    game.score = 0;
 }
