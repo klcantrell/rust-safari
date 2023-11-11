@@ -1,6 +1,7 @@
-use std::{cmp::Ordering, collections::HashMap};
+use std::{cmp::Ordering, collections::HashMap, time::Duration};
 
 use bevy::prelude::*;
+use bevy_easings::*;
 use itertools::Itertools;
 use rand::prelude::*;
 
@@ -19,6 +20,7 @@ fn main() {
         }))
         .add_state::<RunState>()
         .add_plugin(ui::GameUiPlugin)
+        .add_plugin(EasingsPlugin)
         // needs to be inserted after default plugins, which contain the asset resource locator
         .init_resource::<FontSpec>()
         .init_resource::<Game>()
@@ -304,15 +306,21 @@ fn board_shift(
 }
 
 fn render_tiles(
-    mut tiles: Query<(&mut Transform, &Position, Changed<Position>)>,
+    mut commands: Commands,
+    mut tiles: Query<(Entity, &mut Transform, &Position), Changed<Position>>,
     query_board: Query<&Board>,
 ) {
     let board = query_board.single();
-    for (mut transform, position, position_changed) in tiles.iter_mut() {
-        if position_changed {
-            transform.translation.x = board.cell_position_to_physical(position.x);
-            transform.translation.y = board.cell_position_to_physical(position.y);
-        }
+    for (entity, transform, position) in tiles.iter_mut() {
+        let x = board.cell_position_to_physical(position.x);
+        let y = board.cell_position_to_physical(position.y);
+        commands.entity(entity).insert(transform.ease_to(
+            Transform::from_xyz(x, y, transform.translation.z),
+            EaseFunction::QuadraticInOut,
+            EasingType::Once {
+                duration: Duration::from_millis(100),
+            },
+        ));
     }
 }
 
